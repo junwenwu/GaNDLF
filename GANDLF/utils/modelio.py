@@ -88,49 +88,21 @@ def optimize_and_save_model(model, params, path, onnx_export=True):
         # https://github.com/mlcommons/GaNDLF/issues/605
         openvino_present = False
         try:
-            import openvino
-
+            import openvino as ov
+            from openvino.tools.mo import convert_model
             openvino_present = True
         except ImportError:
             print("WARNING: OpenVINO is not present.")
 
         if openvino_present:
+            xml_path = onnx_path.replace("onnx", "xml")
+            bin_path = onnx_path.replace("onnx", "bin")
             try:
                 if model_dimension == 2:
-                    subprocess.call(
-                        [
-                            "mo",
-                            "--input_model",
-                            "{0}".format(onnx_path),
-                            "--input_shape",
-                            "[1,{0},{1},{2}]".format(
-                                num_channel, input_shape[0], input_shape[1]
-                            ),
-                            "--data_type",
-                            "{0}".format(ov_output_data_type),
-                            "--output_dir",
-                            "{0}".format(ov_output_dir),
-                        ],
-                    )
+                    ov_model = convert_model(onnx_path, input_shape=(1, num_channel, input_shape[0], input_shape[1]))
                 else:
-                    subprocess.call(
-                        [
-                            "mo",
-                            "--input_model",
-                            "{0}".format(onnx_path),
-                            "--input_shape",
-                            "[1,{0},{1},{2},{3}]".format(
-                                num_channel,
-                                input_shape[0],
-                                input_shape[1],
-                                input_shape[2],
-                            ),
-                            "--data_type",
-                            "{0}".format(ov_output_data_type),
-                            "--output_dir",
-                            "{0}".format(ov_output_dir),
-                        ],
-                    )
+                    ov_model = convert_model(onnx_path, input_shape=(1, num_channel, input_shape[0], input_shape[1], input_shape[2]))
+                ov.runtime.serialize(ov_model, xml_path=xml_path, bin_path= bin_path)
             except subprocess.CalledProcessError:
                 print("WARNING: OpenVINO Model Optimizer IR conversion failed.")
 
