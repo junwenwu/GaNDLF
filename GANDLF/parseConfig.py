@@ -28,9 +28,11 @@ parameter_defaults = {
     "learning_rate": 0.001,  # default learning rate
     "clip_grad": None,  # clip_gradient value
     "track_memory_usage": False,  # default memory tracking
-    "print_rgb_label_warning": True,  # default memory tracking
+    "memory_save_mode": False,  # default memory saving, if enabled, resize/resample will save files to disk
+    "print_rgb_label_warning": True,  # print rgb label warning
     "data_postprocessing": {},  # default data postprocessing
     "grid_aggregator_overlap": "crop",  # default grid aggregator overlap strategy
+    "determinism": False,  # using deterministic version of computation
 }
 
 ## dictionary to define string defaults for appropriate options
@@ -639,6 +641,8 @@ def parseConfig(config_file_path, version_check_flag=True):
             "WARNING: Setting default step_size to:", params["scheduler"]["step_size"]
         )
 
+    # initialize default optimizer
+    params["optimizer"] = params.get("optimizer", {})
     if isinstance(params["optimizer"], str):
         temp_dict = {}
         temp_dict["type"] = params["optimizer"]
