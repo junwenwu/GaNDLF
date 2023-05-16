@@ -92,7 +92,7 @@ def generate_calib_data(
         calib_image_dataset.append(image)
         calib_label_dataset.append(label)
 
-    import random
+    random.seed(params["calib_data_sample_seed"])
     index = random.sample(range(len(calib_image_dataset)), int(params['calib_ratio'] * len(calib_image_dataset)))
     
     calib_image_sample = torch.Tensor([calib_image_dataset[i].numpy() for i in index])
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     parameters = pickle.load(open(args.parameter_pickle, "rb"))
     calib_data, headers = parseTrainingCSV(args.calib_data_csv, train=True)
 
-    model, pot_dataloader = generate_calib_data(
+    model, ptq_dataloader = generate_calib_data(
         calib_data=calib_data,
         output_dir=args.output_dir,
         params=parameters,

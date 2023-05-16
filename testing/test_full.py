@@ -2918,3 +2918,6 @@ def test_collision_subjectid_test_segmentation_rad_2d(device):
     sanitize_outputDir()
 
     print("passed")
+
+
+#test_train_inference_optimize_segmentation_rad_2d('cpu')
