@@ -9,7 +9,7 @@ from GANDLF.utils import (
 )
 from GANDLF.logger import Logger
 from GANDLF.compute.generic import create_pytorch_objects
-from GANDLF.utils import populate_channel_keys_in_params
+from GANDLF.utils import populate_channel_keys_in_params, get_ground_truths_and_predictions_tensor
 from torch.utils.data import TensorDataset, DataLoader, random_split, SubsetRandomSampler
 import random
 
@@ -34,6 +34,12 @@ def generate_calib_data(
     params["device"] = device
     params["output_dir"] = output_dir
     params["training_data"] = calib_data
+
+    if not ("weights" in params):
+        params["weights"] = None  # no need for loss weights for inference
+    if not ("class_weights" in params):
+        params["class_weights"] = None  # no need for class weights for inference
+    
 
     calib_logger = Logger(
         logger_csv_filename=os.path.join(output_dir, "logs_calib.csv"),
@@ -73,24 +79,128 @@ def generate_calib_data(
     for batch_idx, (subject) in enumerate(
         tqdm(train_dataloader, desc="Looping over training data")
     ):
+        # ensure spacing is always present in params and is always subject-specific
+        params["subject_spacing"] = None
+        if "spacing" in subject:
+            params["subject_spacing"] = subject["spacing"]
 
-        image = torch.squeeze(torch.squeeze(torch.cat(
-                [subject[key][torchio.DATA] for key in params["channel_keys"]], dim=1
-                ).float().to(params["device"]), 0), 3)
+        # constructing a new dict because torchio.GridSampler requires torchio.Subject,
+        # which requires torchio.Image to be present in initial dict, which the loader does not provide
+        subject_dict = {}
+        label_ground_truth = None
+        label_present = False
+        # this is when we want the dataloader to pick up properties of GaNDLF's DataLoader, such as pre-processing and augmentations, if appropriate
+        if "label" in subject:
+            if subject["label"] != ["NA"]:
+                subject_dict["label"] = torchio.Image(
+                    path=subject["label"]["path"],
+                    type=torchio.LABEL,
+                    tensor=subject["label"]["data"].squeeze(0),
+                    affine=subject["label"]["affine"].squeeze(0),
+                )
+                label_present = True
+                label_ground_truth = subject_dict["label"]["data"]
+        if "value_keys" in params:  # for regression/classification
+            for key in params["value_keys"]:
+                subject_dict["value_" + key] = subject[key]
+                label_ground_truth = torch.cat(
+                    [subject[key] for key in params["value_keys"]], dim=0
+                )
 
-        if "value_keys" in params:
-            label = torch.cat([subject[key] for key in params["value_keys"]], dim=0)
-            # min is needed because for certain cases, batch size becomes smaller than the total remaining labels
-            label = label.reshape(
-                min(params["batch_size"], len(label)),
-                len(params["value_keys"]),
+        for key in params["channel_keys"]:
+            subject_dict[key] = torchio.Image(
+                path=subject[key]["path"],
+                type=subject[key]["type"],
+                tensor=subject[key]["data"].squeeze(0),
+                affine=subject[key]["affine"].squeeze(0),
             )
-        else:
-            label = subject["label"][torchio.DATA]
+                
+        # regression/classification problem AND label is present
+        if (params["problem_type"] != "segmentation") and label_present:
+            sampler = torchio.data.LabelSampler(params["patch_size"])
+            tio_subject = torchio.Subject(subject_dict)
+            generator = sampler(tio_subject, num_patches=params["q_samples_per_volume"])
+            for patch in generator:
+                image = torch.cat(
+                    [patch[key][torchio.DATA] for key in params["channel_keys"]], dim=0
+                )
+                valuesToPredict = torch.cat(
+                    [patch["value_" + key] for key in params["value_keys"]], dim=0
+                )
+                image = image.unsqueeze(0)
+                image = image.float().to(params["device"])
+                ## special case for 2D
+                if image.shape[-1] == 1:
+                    image = torch.squeeze(image, -1)
 
-        label = label.to(params["device"])
-        calib_image_dataset.append(image)
-        calib_label_dataset.append(label)
+                calib_image_dataset.append(image)
+                calib_label_dataset.append(valuesToPredict)
+
+        else:  # for segmentation problems OR regression/classification when no label is present
+            grid_sampler = torchio.inference.GridSampler(
+                torchio.Subject(subject_dict),
+                params["patch_size"],
+                patch_overlap=params["inference_mechanism"]["patch_overlap"],
+            )
+            patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=1)
+            aggregator = torchio.inference.GridAggregator(
+                grid_sampler,
+                overlap_mode=params["inference_mechanism"]["grid_aggregator_overlap"],
+            )
+
+            if params["medcam_enabled"]:
+                attention_map_aggregator = torchio.inference.GridAggregator(
+                    grid_sampler,
+                    overlap_mode=params["inference_mechanism"][
+                        "grid_aggregator_overlap"
+                    ],
+                )
+
+            current_patch = 0
+            for patches_batch in patch_loader:
+                if params["verbose"]:
+                    print(
+                        "=== Current patch:",
+                        current_patch,
+                        ", time : ",
+                        get_date_time(),
+                        ", location :",
+                        patches_batch[torchio.LOCATION],
+                        flush=True,
+                    )
+                current_patch += 1
+                image = (
+                    torch.cat(
+                        [
+                            patches_batch[key][torchio.DATA]
+                            for key in params["channel_keys"]
+                        ],
+                        dim=1,
+                    )
+                    .float()
+                    .to(params["device"])
+                )
+
+                # calculate metrics if ground truth is present
+                label = None
+                if params["problem_type"] != "segmentation":
+                    label = label_ground_truth
+                elif "label" in patches_batch:
+                    label = patches_batch["label"][torchio.DATA]
+
+                if label is not None:
+                    label = label.to(params["device"])
+                    if params["verbose"]:
+                        print(
+                            "=== Calibration shapes : label:",
+                            label.shape,
+                            ", image:",
+                            image.shape,
+                            flush=True,
+                        )
+                calib_image_dataset.append(image)
+                calib_label_dataset.append(label)
+
 
     random.seed(params["calib_data_sample_seed"])
     index = random.sample(range(len(calib_image_dataset)), int(params['calib_ratio'] * len(calib_image_dataset)))

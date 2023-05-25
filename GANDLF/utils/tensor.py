@@ -464,6 +464,7 @@ def get_ground_truths_and_predictions_tensor(params, loader_type):
     Returns:
         torch.Tensor, torch.Tensor: The ground truths and base predictions for the given loader type.
     """
+    print("Loader type: ", params[loader_type])
     ground_truth_array = torch.from_numpy(
         params[loader_type][
             params[loader_type].columns[params["headers"]["predictionHeaders"]]
