@@ -63,10 +63,12 @@ def optimize_and_save_model(model, params, path, onnx_export=True):
                 dummy_input = torch.randn(
                     (1, num_channel, input_shape[0], input_shape[1])
                 )
-            else:
+            elif model_dimension == 3:
                 dummy_input = torch.randn(
                     (1, num_channel, input_shape[0], input_shape[1], input_shape[2])
                 )
+            else:
+                sys.exit("ERROR: Invalid model dimensions. Acceptable model dimensions are 2 or 3.")
 
             with torch.no_grad():
                 torch.onnx.export(
@@ -100,7 +102,7 @@ def optimize_and_save_model(model, params, path, onnx_export=True):
             try:
                 if model_dimension == 2:
                     ov_model = convert_model(onnx_path, input_shape=(1, num_channel, input_shape[0], input_shape[1]))
-                else:
+                elif model_dimension == 3:
                     ov_model = convert_model(onnx_path, input_shape=(1, num_channel, input_shape[0], input_shape[1], input_shape[2]))
                 ov.runtime.serialize(ov_model, xml_path=xml_path, bin_path= bin_path)
             except subprocess.CalledProcessError:

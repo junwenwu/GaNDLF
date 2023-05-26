@@ -32,9 +32,9 @@ def ptq_run(
 
     if (not os.path.exists(currentModelConfigPickle)):
         model_parameters = config_file
-        device = "cpu"
+        device = "CPU"
         parameters = parseConfig(model_parameters)
-        parameters["device"] = "cpu"
+        parameters["device"] = "CPU"
         parameters["device_id"] = -1
         
         with open(currentModelConfigPickle, "wb") as handle:

@@ -25,7 +25,7 @@ if __name__ == "__main__":
         metavar="",
         type=str,
         required=True,
-        help="The configuration file (contains all the information related to the NNCF POT session)",
+        help="The configuration file (contains all the information related to the NNCF PTQ session)",
     )
     parser.add_argument(
         "-i",
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         metavar="",
         type=str,
         required=True,
-        help="Data CSV file that is used for POT calibration",
+        help="Data CSV file that is used for PTQ calibration",
     )
     parser.add_argument(
         "-m",
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         "--output_path",
         metavar="",
         type=str,
-        help="Location to save the output of the POT session. ",
+        help="Location to save the output of the PTQ session. ",
     )
 
     parser.add_argument(
@@ -89,6 +89,6 @@ if __name__ == "__main__":
             args.outputdir,
         )
     except Exception as e:
-        sys.exit("Error in GANDLF NNCF ptq:", e)
+        sys.exit("Error in GANDLF NNCF PTQ:", e)
 
     print("Finished.")
