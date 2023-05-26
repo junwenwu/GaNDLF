@@ -133,7 +133,6 @@ def PtqManager(
     if os.path.exists(model_dir):
         core = ov.Core()
         model = core.read_model(model_dir)
-        #model, _, _ = load_ov_model(model_dir, "CPU")
         '''This will be revisited for PyTorch model NNCF POT quantization
         try:
             main_dict = load_model(model_dir, parameters["device"])
@@ -154,12 +153,14 @@ def PtqManager(
             calibration_dataset,
             target_device=nncf.TargetDevice.CPU,
         )
-    else:
+    elif parameters['ptq_type'] == 'AccuracyAware':
         quantized_model = nncf.quantize_with_accuracy_control(model,
                         calibration_dataset=calibration_dataset,
                         validation_dataset=validation_dataset,
                         validation_fn=validate,
-                        max_drop=0.01)    
+                        max_drop=0.01)
+    else:
+        sys.exit("ERROR: 'ptq_type' config parameter is invalid. Valid options: Default, AccuracyAware")
     
     ov.serialize(quantized_model, os.path.join(outputDir, os.path.basename(model_dir)))
     
