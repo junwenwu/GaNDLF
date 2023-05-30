@@ -9,12 +9,21 @@ from GANDLF.utils import (
 )
 from GANDLF.logger import Logger
 from GANDLF.compute.generic import create_pytorch_objects
-from GANDLF.utils import populate_channel_keys_in_params, get_ground_truths_and_predictions_tensor
-from torch.utils.data import TensorDataset, DataLoader, random_split, SubsetRandomSampler
+from GANDLF.utils import (
+    populate_channel_keys_in_params,
+    get_ground_truths_and_predictions_tensor,
+)
+from torch.utils.data import (
+    TensorDataset,
+    DataLoader,
+    random_split,
+    SubsetRandomSampler,
+)
 import random
 
 # hides torchio citation request, see https://github.com/fepegar/torchio/issues/235
 os.environ["TORCHIO_HIDE_CITATION_PROMPT"] = "1"
+
 
 def generate_calib_data(
     calib_data,
@@ -39,7 +48,6 @@ def generate_calib_data(
         params["weights"] = None  # no need for loss weights for inference
     if not ("class_weights" in params):
         params["class_weights"] = None  # no need for class weights for inference
-    
 
     calib_logger = Logger(
         logger_csv_filename=os.path.join(output_dir, "logs_calib.csv"),
@@ -114,7 +122,7 @@ def generate_calib_data(
                 tensor=subject[key]["data"].squeeze(0),
                 affine=subject[key]["affine"].squeeze(0),
             )
-                
+
         # regression/classification problem AND label is present
         if (params["problem_type"] != "segmentation") and label_present:
             sampler = torchio.data.LabelSampler(params["patch_size"])
@@ -201,17 +209,19 @@ def generate_calib_data(
                 calib_image_dataset.append(image)
                 calib_label_dataset.append(label)
 
-
     random.seed(params["calib_data_sample_seed"])
-    index = random.sample(range(len(calib_image_dataset)), int(params['calib_ratio'] * len(calib_image_dataset)))
-    
+    index = random.sample(
+        range(len(calib_image_dataset)),
+        int(params["calib_ratio"] * len(calib_image_dataset)),
+    )
+
     calib_image_sample = torch.Tensor([calib_image_dataset[i].numpy() for i in index])
     calib_label_sample = torch.Tensor([calib_label_dataset[i].numpy() for i in index])
 
     calib_dataset = TensorDataset(calib_image_sample, calib_label_sample)
-    
-    calib_dataloader =  DataLoader(dataset = calib_dataset, shuffle=False, batch_size=1)
-    return(model, calib_dataloader)
+
+    calib_dataloader = DataLoader(dataset=calib_dataset, shuffle=False, batch_size=1)
+    return (model, calib_dataloader)
 
 
 if __name__ == "__main__":
@@ -219,13 +229,19 @@ if __name__ == "__main__":
 
     torch.multiprocessing.freeze_support()
     # parse the cli arguments here
-    parser = argparse.ArgumentParser(description="NNCF POT of Trained Model")
+    parser = argparse.ArgumentParser(description="NNCF PTQ of Trained Model")
     parser.add_argument(
-        "-calib_data_csv", type=str, help="CSV file of the calibration data", required=True
+        "-c",
+        "--calib_data_csv",
+        type=str,
+        help="CSV file of the calibration data",
+        required=True,
     )
-    parser.add_argument("-output_dir", type=str, help="Output directory", required=True)
     parser.add_argument(
-        "-params", type=str, help="Parameters pickle", required=True
+        "-o", "--output_dir", type=str, help="Output directory", required=True
+    )
+    parser.add_argument(
+        "-p", "--parameter_pickle", type=str, help="Parameters pickle", required=True
     )
     args = parser.parse_args()
 
