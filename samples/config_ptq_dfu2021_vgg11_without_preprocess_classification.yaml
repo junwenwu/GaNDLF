@@ -2,7 +2,7 @@
 version:
   {
     minimum: 0.0.10,
-    maximum: 0.0.10 # this should NOT be made a variable, but should be tested after every tag is created
+    maximum: 0.0.16 # this should NOT be made a variable, but should be tested after every tag is created
   }
 # Choose the model parameters here
 model:
