@@ -3,7 +3,8 @@
 
 import argparse
 from GANDLF.cli import copyrightMessage, post_training_model_optimization
-
+import sys
+from GANDLF.cli import ptq_run
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -18,9 +19,12 @@ if __name__ == "__main__":
         "--model",
         metavar="",
         type=str,
-        help="Path to the model file (ending in '.pth.tar') you wish to optimize.",
+        help="Path to the model file you wish to optimize. \
+            Model ending in '.pth.tar' will evoke MO optimization, if input data is given, post-training quantization will be evoked as well. \
+            Model ending in '.xml' will evoke post-training quantization.",
         required=True,
     )
+
     parser.add_argument(
         "-c",
         "--config",
@@ -30,9 +34,58 @@ if __name__ == "__main__":
         help="The configuration file (contains all the information related to the training/inference session).",
     )
 
+    parser.add_argument(
+        "-i",
+        "--inputdata",
+        "--data_path",
+        metavar="",
+        type=str,
+        help="Data CSV file that is used for PTQ calibration",
+    )
+
+    parser.add_argument(
+        "-o",
+        "--outputdir",
+        "--output_path",
+        metavar="",
+        type=str,
+        help="Location to save the output of the PTQ session. ",
+    )
+
+    
     args = parser.parse_args()
 
-    if post_training_model_optimization(args.model, args.config):
-        print("Post-training model optimization successful.")
-    else:
-        print("Post-training model optimization failed.")
+    if "pth.tar" in args.model:
+        if post_training_model_optimization(args.model, args.config):
+            print("Post-training model optimization successful.")
+
+            
+            if args.inputdata:
+                try:
+                    ptq_run(
+                        args.inputdata,
+                        args.config,
+                        args.model.replace("pth.tar", "xml"),
+                        args.outputdir,
+                    )
+                    print("Post-training model quantization successful.")
+                except Exception as e:
+                    sys.exit("Error in post-training model quantization: ", e)
+
+        else:
+            print("Post-training model optimization failed.")
+    
+    if "xml" in args.model:
+        if args.inputdata:
+            try:
+                ptq_run(
+                    args.inputdata,
+                    args.config,
+                    args.model,
+                    args.outputdir,
+                )
+            except Exception as e:
+                sys.exit("Error in post-training model quantization: ", e)
+        else:
+            print("No post-training model quantization requires a calibration dataset.")
+        

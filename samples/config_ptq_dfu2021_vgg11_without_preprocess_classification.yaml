@@ -117,7 +117,7 @@ data_augmentation:
 
 ## OpenVINO Post-Training Quantization (PTQ) parameters.
 # for details, see https://docs.openvino.ai/latest/pot_introduction.html
-ptq_type: "Default" # options: Default, AccuracyAware
+ptq_type: "Default" # options: Default, AccuracyAwareQuant
 calib_metrics: "classification_accuracy" # options: choose one of metrics defined above. Defaults to the first metric defined in "metrics" above
 calib_ratio: 0.1 # How much of the training/validation dataset need to be used as calibration data for PTQ
 calib_data_sample_seed: 12345 #

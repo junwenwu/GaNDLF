@@ -3,7 +3,7 @@ import os, sys, pickle, subprocess, shutil
 from pathlib import Path
 
 from GANDLF.data.generate_calib_data import generate_calib_data
-from GANDLF.utils import get_dataframe, load_model, load_ov_model, optimize_and_save_model, get_ground_truths_and_predictions_tensor
+from GANDLF.utils import get_dataframe, load_model, load_ov_model, optimize_and_save_model, get_ground_truths_and_predictions_tensor, best_model_path_end
 from openvino import runtime as ov
 from openvino.tools import mo
 from openvino.runtime import serialize, Model, CompiledModel
@@ -12,6 +12,7 @@ from nncf.common.logging.logger import set_log_level
 import torch
 import numpy as np
 from GANDLF.compute.loss_and_metric import get_loss_and_metrics
+
 
 def transform_fn(data_item):
     """
@@ -130,8 +131,12 @@ def PtqManager(
     
     getMetricsParams(parameters)
 
+    # model_xml = os.path.join(model_dir, params["model"]["architecture"] + best_model_path_end).replace("pth.tar", "xml")
+ 
     if os.path.exists(model_dir):
         core = ov.Core()
+        #model_xml = os.path.join(model_dir, params["model"]["architecture"] + best_model_path_end).replace("pth.tar", "xml")
+
         model = core.read_model(model_dir)
         '''This will be revisited for PyTorch model NNCF POT quantization
         try:
@@ -153,7 +158,7 @@ def PtqManager(
             calibration_dataset,
             target_device=nncf.TargetDevice.CPU,
         )
-    elif parameters['ptq_type'] == 'AccuracyAware':
+    elif parameters['ptq_type'] == 'AccuracyAwareQuant':
         quantized_model = nncf.quantize_with_accuracy_control(model,
                         calibration_dataset=calibration_dataset,
                         validation_dataset=validation_dataset,

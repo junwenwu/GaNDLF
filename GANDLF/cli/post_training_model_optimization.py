@@ -4,7 +4,7 @@ from GANDLF.parseConfig import parseConfig
 from GANDLF.utils import version_check, load_model, optimize_and_save_model
 
 
-def post_training_model_optimization(model_path, config_path):
+def post_training_model_optimization(model_path, config_path, version_check_flag = False):
     """
     CLI function to optimize a model for deployment.
 
@@ -16,7 +16,7 @@ def post_training_model_optimization(model_path, config_path):
         bool: True if successful, False otherwise.
     """
 
-    parameters = parseConfig(config_path, version_check_flag=False)
+    parameters = parseConfig(config_path, version_check_flag=version_check_flag)
     (
         model,
         _,
@@ -26,8 +26,10 @@ def post_training_model_optimization(model_path, config_path):
         parameters,
     ) = create_pytorch_objects(parameters, device="cpu")
 
-    main_dict = load_model(model_path, "cpu")
-    version_check(parameters["version"], version_to_check=main_dict["version"])
+    print("Model path is: ", model_path)
+    main_dict = load_model(model_path, "cpu", full_sanity_check=version_check_flag)
+    if version_check_flag:
+        version_check(parameters["version"], version_to_check=main_dict["version"])
     model.load_state_dict(main_dict["model_state_dict"])
     optimize_and_save_model(model, parameters, model_path, onnx_export=True)
     optimized_model_path = model_path.replace("pth.tar", "onnx")
