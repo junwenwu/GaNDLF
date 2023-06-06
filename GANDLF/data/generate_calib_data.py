@@ -210,10 +210,19 @@ def generate_calib_data(
                 calib_label_dataset.append(label)
 
     random.seed(params["calib_data_sample_seed"])
-    index = random.sample(
-        range(len(calib_image_dataset)),
-        int(params["calib_ratio"] * len(calib_image_dataset)),
-    )
+    if "calib_sample_size" not in params.keys():
+        params["calib_sample_size"] = 300
+
+    if float(params["calib_sample_size"]) > 1:
+        index = random.sample(
+            range(len(calib_image_dataset)),
+            int(params["calib_sample_size"]),
+        )
+    else:
+        index = random.sample(
+            range(len(calib_image_dataset)),
+            int(params["calib_sample_size"] * len(calib_image_dataset)),
+        )
 
     calib_image_sample = torch.Tensor([calib_image_dataset[i].numpy() for i in index])
     calib_label_sample = torch.Tensor([calib_label_dataset[i].numpy() for i in index])

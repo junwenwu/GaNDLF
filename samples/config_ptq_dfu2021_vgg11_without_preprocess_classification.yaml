@@ -119,7 +119,8 @@ data_augmentation:
 # for details, see https://docs.openvino.ai/latest/pot_introduction.html
 ptq_type: "Default" # options: Default, AccuracyAwareQuant
 calib_metrics: "classification_accuracy" # options: choose one of metrics defined above. Defaults to the first metric defined in "metrics" above
-calib_ratio: 0.1 # How much of the training/validation dataset need to be used as calibration data for PTQ
+calib_sample_size: 0.1 # How much of the training/validation dataset need to be used as calibration data for PTQ. 
+                       # A number < 1 refers to the ratio out of the entire dataset. Otherwise it is the absolute number of samples. Default is 300. 
 calib_data_sample_seed: 12345 #
 
 # parallel training on HPC - here goes the command to prepend to send to a high performance computing
