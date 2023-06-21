@@ -163,7 +163,7 @@ def PtqManager(
                         calibration_dataset=calibration_dataset,
                         validation_dataset=validation_dataset,
                         validation_fn=validate,
-                        max_drop=0.01)
+                        max_drop=parameters['max_drop'])
     else:
         sys.exit("ERROR: 'ptq_type' config parameter is invalid. Valid options: Default, AccuracyAware")
     
