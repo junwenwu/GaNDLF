@@ -12,7 +12,7 @@ from nncf.common.logging.logger import set_log_level
 import torch
 import numpy as np
 from GANDLF.compute.loss_and_metric import get_loss_and_metrics
-
+from nncf.common.quantization.structs import QuantizationPreset
 
 def transform_fn(data_item):
     """
@@ -152,18 +152,40 @@ def PtqManager(
         '''
     
     print("Current PTQ type is: ", parameters['ptq_type'] )
+    print("Current PTQ backend is: ", parameters['ptq_backend'] )
     if parameters['ptq_type'] == 'Default':
-        quantized_model = nncf.quantize(
-            model,
-            calibration_dataset,
-            target_device=nncf.TargetDevice.CPU,
-        )
+        if parameters['ptq_backend'] == "POT":
+            quantized_model = nncf.quantize(
+                model,
+                calibration_dataset,
+                target_device=nncf.TargetDevice.CPU,
+                advanced_parameters=nncf.quantization.advanced_parameters.AdvancedQuantizationParameters(backend_params={"use_pot": True}),
+            )
+        else:
+            quantized_model = nncf.quantize(
+                model,
+                calibration_dataset,
+                target_device=nncf.TargetDevice.CPU,
+            )
     elif parameters['ptq_type'] == 'AccuracyAwareQuant':
-        quantized_model = nncf.quantize_with_accuracy_control(model,
-                        calibration_dataset=calibration_dataset,
-                        validation_dataset=validation_dataset,
-                        validation_fn=validate,
-                        max_drop=parameters['max_drop'])
+        if parameters['ptq_backend'] == "POT":
+            quantized_model = nncf.quantize_with_accuracy_control(model,
+                            calibration_dataset=calibration_dataset,
+                            validation_dataset=validation_dataset,
+                            validation_fn=validate,
+                            max_drop=parameters['max_drop'],
+                            preset=QuantizationPreset.PERFORMANCE,
+                            target_device=nncf.TargetDevice.CPU,
+                            advanced_quantization_parameters=nncf.quantization.advanced_parameters.AdvancedQuantizationParameters(backend_params={"use_pot": True}),
+                        )                
+        else:
+            quantized_model = nncf.quantize_with_accuracy_control(model,
+                            calibration_dataset=calibration_dataset,
+                            validation_dataset=validation_dataset,
+                            validation_fn=validate,
+                            target_device=nncf.TargetDevice.CPU,
+                            max_drop=parameters['max_drop'],
+                        )
     else:
         sys.exit("ERROR: 'ptq_type' config parameter is invalid. Valid options: Default, AccuracyAware")
     
