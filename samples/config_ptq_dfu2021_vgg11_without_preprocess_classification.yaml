@@ -23,7 +23,7 @@ in_memory: False
 save_masks: False
 # Set the Modality : rad for radiology, path for histopathology
 modality: rad
-# Patch size during training - 2D patch for breast images since third dimension is not patched 
+# Patch size during training - 2D patch for breast images since third dimension is not patched
 patch_size: [128, 128]
 # uniform: UniformSampler or label: LabelSampler
 patch_sampler: uniform
@@ -44,7 +44,7 @@ scheduler: triangle
 # use mse_torch for regression/classification problems and dice for segmentation
 loss_function: cel
 # this parameter weights the loss to handle imbalanced losses better
-weighted_loss: True 
+weighted_loss: True
 #loss_function:
 #  {
 #    'mse':{
@@ -93,7 +93,7 @@ data_preprocessing:
 # all transforms: https://torchio.readthedocs.io/transforms/transforms.html?highlight=transforms
 # 'kspace': one of motion, ghosting or spiking is picked (randomly) for augmentation
 # 'probability' subkey adds the probability of the particular augmentation getting added during training (this is always 1 for normalize and resampling)
-data_augmentation: 
+data_augmentation:
   {
     # default_probability: 0.5,
     # 'affine',
@@ -116,11 +116,13 @@ data_augmentation:
   }
 
 ## OpenVINO Post-Training Quantization (PTQ) parameters.
-# for details, see https://docs.openvino.ai/latest/pot_introduction.html
-ptq_type: "Default" # options: Default, AccuracyAwareQuant
+# for details, see https://docs.openvino.ai/2023.0/ptq_introduction.html
+ptq_type: "Default" # options: Default, AccuracyAware
+ptq_backend: "Default" # options: Default, POT
+max_drop: 0.01 # If ptq_type: "AccuracyAware", max_drop is considered. max_drop defines the accuracy drop threshold.
 calib_metrics: "classification_accuracy" # options: choose one of metrics defined above. Defaults to the first metric defined in "metrics" above
-calib_sample_size: 0.1 # How much of the training/validation dataset need to be used as calibration data for PTQ. 
-                       # A number < 1 refers to the ratio out of the entire dataset. Otherwise it is the absolute number of samples. Default is 300. 
+calib_sample_size: 0.1 # How much of the training/validation dataset need to be used as calibration data for PTQ.
+                       # A number < 1 refers to the ratio out of the entire dataset. Otherwise it is the absolute number of samples. Default is 300.
 calib_data_sample_seed: 12345 #
 
 # parallel training on HPC - here goes the command to prepend to send to a high performance computing

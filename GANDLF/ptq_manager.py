@@ -1,18 +1,13 @@
-import pandas as pd
-import os, sys, pickle, subprocess, shutil
-from pathlib import Path
+import os, sys
 
 from GANDLF.data.generate_calib_data import generate_calib_data
-from GANDLF.utils import get_dataframe, load_model, load_ov_model, optimize_and_save_model, get_ground_truths_and_predictions_tensor, best_model_path_end
 from openvino import runtime as ov
-from openvino.tools import mo
-from openvino.runtime import serialize, Model, CompiledModel
+from openvino.runtime import CompiledModel
 import nncf
-from nncf.common.logging.logger import set_log_level
 import torch
 import numpy as np
 from GANDLF.compute.loss_and_metric import get_loss_and_metrics
-from nncf.common.quantization.structs import QuantizationPreset
+from nncf.quantization.advanced_parameters import AdvancedQuantizationParameters
 
 def transform_fn(data_item):
     """
@@ -36,21 +31,23 @@ def validate(model: CompiledModel,
     input_layer = model.inputs
     output_layer = model.outputs
 
-
     calculate_overall_metrics = (
         (accuracy_parameters["problem_type"] == "classification")
         or (accuracy_parameters["problem_type"] == "regression")
-    ) 
+    )
 
     # accuracy_parameters["weights"] = None
     count = 0
     for image, target in validation_loader:
         count += 1
         image = np.expand_dims(torch.squeeze(image).cpu().numpy(), axis=0)
+        #TODO: Need to fix this in a better way
+        if accuracy_parameters["problem_type"] == "segmentation":
+            image = image.reshape([1, *image.shape])
         pred_output = torch.from_numpy(
             model(inputs={input_layer[0]: image})[output_layer[0]]
         )
-        pred_output = pred_output.to(accuracy_parameters["device"])       
+        pred_output = pred_output.to(accuracy_parameters["device"])
 
         if accuracy_parameters["problem_type"] == "regression":
             output = torch.FloatTensor([np.argmax(np.asarray(pred_output[0]), 0)])
@@ -90,19 +87,19 @@ def validate(model: CompiledModel,
         final_loss, final_metric = get_loss_and_metrics(
                 image, target, output, accuracy_parameters
         )
-        
+
         if "calib_metrics" in accuracy_parameters:
             metric = accuracy_parameters["calib_metrics"]
         else:
             metric = accuracy_parameters["metrics"][0]
-        
+
         if total_calib_metric == 0:
             total_calib_metric = np.array(final_metric[metric])
         else:
             total_calib_metric += np.array(final_metric[metric])
 
     average_calib_metric = total_calib_metric / count
-     
+
     return average_calib_metric
 
 def PtqManager(
@@ -128,14 +125,11 @@ def PtqManager(
 
     calibration_dataset = nncf.Dataset(ptq_dataloader, transform_fn)
     validation_dataset = nncf.Dataset(ptq_dataloader, transform_fn)
-    
+
     getMetricsParams(parameters)
 
-    # model_xml = os.path.join(model_dir, params["model"]["architecture"] + best_model_path_end).replace("pth.tar", "xml")
- 
     if os.path.exists(model_dir):
         core = ov.Core()
-        #model_xml = os.path.join(model_dir, params["model"]["architecture"] + best_model_path_end).replace("pth.tar", "xml")
 
         model = core.read_model(model_dir)
         '''This will be revisited for PyTorch model NNCF POT quantization
@@ -150,44 +144,34 @@ def PtqManager(
         except RuntimeWarning:
             RuntimeWarning("Previous model could not be loaded, initializing model")
         '''
-    
-    print("Current PTQ type is: ", parameters['ptq_type'] )
-    print("Current PTQ backend is: ", parameters['ptq_backend'] )
+
+    print(f"Current PTQ type is: {parameters['ptq_type']}")
+    print(f"Current PTQ backend is: {parameters['ptq_backend']}")
+
+    if parameters['ptq_backend'] == "POT":
+        advanced_parameters = AdvancedQuantizationParameters(backend_params={"use_pot": True})
+    elif parameters['ptq_backend'] == "Default":
+        advanced_parameters = None
+    else:
+        sys.exit("ERROR: 'ptq_backend' config parameter is invalid. Valid options: Default, POT")
+
     if parameters['ptq_type'] == 'Default':
-        if parameters['ptq_backend'] == "POT":
             quantized_model = nncf.quantize(
                 model,
                 calibration_dataset,
-                target_device=nncf.TargetDevice.CPU,
-                advanced_parameters=nncf.quantization.advanced_parameters.AdvancedQuantizationParameters(backend_params={"use_pot": True}),
+                advanced_parameters=advanced_parameters,
             )
-        else:
-            quantized_model = nncf.quantize(
-                model,
-                calibration_dataset,
-                target_device=nncf.TargetDevice.CPU,
-            )
-    elif parameters['ptq_type'] == 'AccuracyAwareQuant':
-        if parameters['ptq_backend'] == "POT":
-            quantized_model = nncf.quantize_with_accuracy_control(model,
+    elif parameters['ptq_type'] == 'AccuracyAware':
+            quantized_model = nncf.quantize_with_accuracy_control(
+                            model,
                             calibration_dataset=calibration_dataset,
                             validation_dataset=validation_dataset,
                             validation_fn=validate,
                             max_drop=parameters['max_drop'],
-                            preset=QuantizationPreset.PERFORMANCE,
-                            target_device=nncf.TargetDevice.CPU,
-                            advanced_quantization_parameters=nncf.quantization.advanced_parameters.AdvancedQuantizationParameters(backend_params={"use_pot": True}),
-                        )                
-        else:
-            quantized_model = nncf.quantize_with_accuracy_control(model,
-                            calibration_dataset=calibration_dataset,
-                            validation_dataset=validation_dataset,
-                            validation_fn=validate,
-                            target_device=nncf.TargetDevice.CPU,
-                            max_drop=parameters['max_drop'],
+                            advanced_quantization_parameters=advanced_parameters,
                         )
     else:
         sys.exit("ERROR: 'ptq_type' config parameter is invalid. Valid options: Default, AccuracyAware")
-    
+
     ov.serialize(quantized_model, os.path.join(outputDir, os.path.basename(model_dir)))
-    
+

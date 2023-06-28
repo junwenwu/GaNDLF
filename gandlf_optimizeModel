@@ -15,51 +15,33 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-m",
-        "--model",
-        metavar="",
-        type=str,
+        "-m", "--model", metavar="", type=str, required=True,
         help="Path to the model file you wish to optimize. \
             Model ending in '.pth.tar' will evoke MO optimization, if input data is given, post-training quantization will be evoked as well. \
             Model ending in '.xml' will evoke post-training quantization.",
-        required=True,
     )
 
     parser.add_argument(
-        "-c",
-        "--config",
-        metavar="",
-        type=str,
-        default="",
+        "-c", "--config", metavar="", type=str, default="",
         help="The configuration file (contains all the information related to the training/inference session).",
     )
 
     parser.add_argument(
-        "-i",
-        "--inputdata",
-        "--data_path",
-        metavar="",
-        type=str,
+        "-i", "--inputdata", metavar="", type=str,
         help="Data CSV file that is used for PTQ calibration",
     )
 
     parser.add_argument(
-        "-o",
-        "--outputdir",
-        "--output_path",
-        metavar="",
-        type=str,
+        "-o", "--outputdir", metavar="", type=str,
         help="Location to save the output of the PTQ session. ",
     )
 
-    
     args = parser.parse_args()
 
     if "pth.tar" in args.model:
         if post_training_model_optimization(args.model, args.config):
             print("Post-training model optimization successful.")
 
-            
             if args.inputdata:
                 try:
                     ptq_run(
@@ -73,9 +55,9 @@ if __name__ == "__main__":
                     sys.exit("Error in post-training model quantization: ", e)
 
         else:
-            print("Post-training model optimization failed.")
-    
-    if "xml" in args.model:
+            sys.exit("Error: Post-training model optimization failed.")
+
+    if ".xml" in args.model:
         if args.inputdata:
             try:
                 ptq_run(
@@ -87,5 +69,5 @@ if __name__ == "__main__":
             except Exception as e:
                 sys.exit("Error in post-training model quantization: ", e)
         else:
-            print("No post-training model quantization requires a calibration dataset.")
-        
+            sys.exit("Error: Post-training model quantization requires a calibration dataset.")
+

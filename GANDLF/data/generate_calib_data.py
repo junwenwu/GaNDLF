@@ -1,23 +1,21 @@
-import os, time, psutil
+import os
 import torch
 from tqdm import tqdm
-import numpy as np
 import torchio
 
 from GANDLF.utils import (
     print_model_summary,
+    parseTrainingCSV
 )
 from GANDLF.logger import Logger
 from GANDLF.compute.generic import create_pytorch_objects
 from GANDLF.utils import (
+    get_date_time,
     populate_channel_keys_in_params,
-    get_ground_truths_and_predictions_tensor,
 )
 from torch.utils.data import (
     TensorDataset,
     DataLoader,
-    random_split,
-    SubsetRandomSampler,
 )
 import random
 
@@ -206,8 +204,8 @@ def generate_calib_data(
                             image.shape,
                             flush=True,
                         )
-                calib_image_dataset.append(image)
-                calib_label_dataset.append(label)
+                calib_image_dataset.append(image.squeeze(0))
+                calib_label_dataset.append(label.squeeze(0))
 
     random.seed(params["calib_data_sample_seed"])
     if "calib_sample_size" not in params.keys():
