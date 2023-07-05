@@ -22,7 +22,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-c", "--config", metavar="", type=str, default="",
+        "-c", "--config", metavar="", type=str, default=None, required=False,
         help="The configuration file (contains all the information related to the training/inference session).",
     )
 

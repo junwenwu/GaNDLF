@@ -1,3 +1,5 @@
+from pandas.util import hash_pandas_object
+
 from GANDLF.models import get_model
 from GANDLF.schedulers import get_scheduler
 from GANDLF.optimizers import get_optimizer
@@ -47,12 +49,10 @@ def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu
         # get the train loader
         train_loader = get_train_loader(parameters)
         parameters["training_samples_size"] = len(train_loader)
-
-        # Calculate the weights here
-        (
-            parameters["weights"],
-            parameters["class_weights"],
-        ) = get_class_imbalance_weights(parameters["training_data"], parameters)
+        # get the hash of the training data for reproducibility
+        parameters["training_data_hash"] = hash_pandas_object(
+            parameters["training_data"]
+        ).sum()
 
     if val_csv is not None:
         parameters["validation_data"], headers_to_populate_val = parseTrainingCSV(
@@ -93,6 +93,13 @@ def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu
             )
 
         scheduler = get_scheduler(parameters)
+
+        # Calculate the weights here
+        (
+            parameters["weights"],
+            parameters["class_weights"],
+        ) = get_class_imbalance_weights(parameters["training_data"], parameters)
+
     else:
         scheduler = None
 
