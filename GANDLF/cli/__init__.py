@@ -3,7 +3,7 @@ from .main_run import main_run
 from .ptq_run import ptq_run
 from .preprocess_and_save import preprocess_and_save
 from .config_generator import config_generator
-from .deploy import deploy_targets, run_deployment
+from .deploy import deploy_targets, mlcube_types, run_deployment
 from .recover_config import recover_config
 from .post_training_model_optimization import post_training_model_optimization
 from .generate_metrics import generate_metrics_dict
