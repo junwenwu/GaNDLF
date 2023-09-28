@@ -33,7 +33,7 @@ A major reason why one would want to anonymize data is to ensure that trained mo
   # -v, --version      Show program's version number and exit.
   -c ./samples/config_anonymizer.yaml \ # anonymizer configuration - needs to be a valid YAML (check syntax using https://yamlchecker.com/)
   -i ./input_dir_or_file \ # input directory containing series of images to anonymize or a single image
-  -o ./output_dir_or_file # output directory to save anonymized images or a single output image file
+  -o ./output_dir_or_file # output directory to save anonymized images or a single output image file (for a DICOM to NIfTi conversion specify a .nii.gz file)
 ```
 
 ### Cleanup/Harmonize/Curate Data
@@ -157,6 +157,7 @@ The following command shows how the script works:
 ```
 
 **Notes**:
+
 - For classification/regression, add a column called `ValueToPredict`. Currently, we are supporting only a single value prediction per model.
 - `SubjectID` or `PatientName` is used to ensure that the randomized split is done per-subject rather than per-image.
 - For data arrangement different to what is described above, a customized script will need to be written to generate the CSV, or you can enter the data manually into the CSV. 
@@ -172,6 +173,7 @@ GaNDLF requires a YAML-based configuration that controls various aspects of the 
 - [Classification example](https://github.com/mlcommons/GaNDLF/blob/master/samples/config_classification.yaml)
 
 **Notes**: 
+
 - More details on the configuration options are available in the [customization page](customize.md).
 - Ensure that the configuration has valid syntax by checking the file using any YAML validator such as [yamlchecker.com](https://yamlchecker.com/) or [yamlvalidator.com](https://yamlvalidator.com/) **before** trying to train.
 
