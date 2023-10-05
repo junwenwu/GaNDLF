@@ -15,7 +15,7 @@ from GANDLF.utils import (
 )
 
 
-def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu"):
+def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu", train_nncf=False):
     """
     This function creates all the PyTorch objects needed for training.
 

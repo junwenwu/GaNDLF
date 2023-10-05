@@ -5,6 +5,7 @@ import argparse
 from GANDLF.cli import copyrightMessage, post_training_model_optimization
 import sys
 from GANDLF.cli import ptq_run
+from GANDLF.cli.dto_run import dto_run
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -27,8 +28,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-ptq", action="store_false",
+        help="Optimization type. Default is OpenVINO NNCF PTQ. If False, using NNCF DTO (During Training Optimization) for optimization.",
+    )
+
+    parser.add_argument(
         "-i", "--inputdata", metavar="", type=str,
-        help="Data CSV file that is used for PTQ calibration",
+        help="For PTQ: PTQ calibration data CSV file; for DTO: training data CSV file and validation data CSV file separated by comma.",
     )
 
     parser.add_argument(
@@ -38,8 +44,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if "pth.tar" in args.model:
-        if post_training_model_optimization(args.model, args.config):
+    if "pth.tar" in args.model and args.ptq == True:
+        if during_training_model_optimization(args.model, args.config):
             print("Post-training model optimization successful.")
 
             if args.inputdata:
@@ -52,10 +58,29 @@ if __name__ == "__main__":
                     )
                     print("Post-training model quantization successful.")
                 except Exception as e:
-                    sys.exit("Error in post-training model quantization: ", e)
+                    sys.exit("Error in post-training model quantization.")
 
         else:
             sys.exit("Error: Post-training model optimization failed.")
+    elif "pth.tar" in args.model and args.ptq == False:
+        print("Start during-training model optimization.")
+
+        if args.inputdata:
+            try:
+                dto_run(
+                        args.inputdata,
+                        args.config,
+                        args.model,
+                        args.outputdir,
+                    )
+                print("During-training model optimization successful.")
+            except Exception as e:
+                print(e)
+                sys.exit("Error in during-training model optimization.")
+
+        else:
+            sys.exit("Error: Need to privde both training and validation data for OpenVINO NNCF During Training Optimization.")
+        
 
     if ".xml" in args.model:
         if args.inputdata:
@@ -67,7 +92,9 @@ if __name__ == "__main__":
                     args.outputdir,
                 )
             except Exception as e:
-                sys.exit("Error in post-training model quantization: ", e)
+                print(e)
+                sys.exit("Error in post-training model quantization.")
         else:
+            print(e)
             sys.exit("Error: Post-training model quantization requires a calibration dataset.")
 
