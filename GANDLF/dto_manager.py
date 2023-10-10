@@ -14,6 +14,9 @@ from GANDLF.logger import Logger
 from GANDLF.metrics import overall_stats
 from GANDLF.compute.training_loop import train_network
 from GANDLF.compute.forward_pass import validate_network
+import time
+from tqdm import tqdm
+import torchio
 
 from GANDLF.optimizers.nncf_optimizer import get_parameter_groups, make_optimizer
 from GANDLF.utils import (
@@ -33,6 +36,55 @@ from GANDLF.utils import (
 )
 
 from GANDLF.compute  import create_pytorch_objects
+
+from nncf.torch.initialization import PTInitializingDataLoader
+
+from torch.utils.data import TensorDataset, DataLoader
+
+def InitDataLoader(train_dataloader, optimizer, params):
+    images = None
+    labels = None
+
+    for batch_idx, (subject) in enumerate(
+        tqdm(train_dataloader, desc="Looping over training data")
+    ):
+        optimizer.zero_grad()
+        image = (
+            torch.cat(
+                [subject[key][torchio.DATA] for key in params["channel_keys"]], dim=1
+            )
+            .float()
+            .to(params["device"])
+        )
+        if images == None:
+            images = torch.squeeze(image)
+        else:
+            images = torch.cat((images, torch.squeeze(image)), dim = 0)
+
+        # images.append(image.cpu().numpy())
+        if "value_keys" in params:
+            label = torch.cat([subject[key] for key in params["value_keys"]], dim=0)
+            # min is needed because for certain cases, batch size becomes smaller than the total remaining labels
+            label = label.reshape(
+                min(params["batch_size"], len(label)),
+                len(params["value_keys"]),
+            )
+        else:
+            label = subject["label"][torchio.DATA]
+        label = label.to(params["device"])
+        if labels == None:
+            labels = torch.squeeze(label)
+        else:
+            labels = torch.cat((labels, torch.squeeze(label)), dim = 0)
+    
+    tensor_x = torch.squeeze(torch.Tensor(images)) # transform to torch tensor
+    tensor_y = torch.squeeze(torch.Tensor(labels))
+
+    init_dataset = TensorDataset(tensor_x,tensor_y) # create your datset
+    init_dataloader = DataLoader(init_dataset, batch_size = params["batch_size"]) # create your dataloader
+
+
+    return(init_dataloader)
 
 
 def get_default_weight_decay(config):
@@ -93,6 +145,7 @@ def DtoManager(
         # parameters["previous_parameters"] = main_dict.get("parameters", None)
 
     # Defining our model here according to parameters mentioned in the configuration file
+    parameters['problem_type'] = 'classification'
     print("Number of channels : ", parameters["model"]["num_channels"])
 
     (
@@ -104,12 +157,16 @@ def DtoManager(
         parameters,
     ) = create_pytorch_objects(parameters, dataframe_train, dataframe_validation, parameters["device"].lower())
 
+    #train_dataloader = init_dto_dataloader()
+
+
     model.load_state_dict(main_dict["model_state_dict"]) 
     optimizer.load_state_dict(main_dict["optimizer_state_dict"])
 
-    # nncf_config = register_default_init_args(nncf_config, train_dataloader)
-
-    print(nncf_config)
+    init_dataloader = InitDataLoader(train_dataloader, optimizer, parameters)
+    # now you pass this wrapped object instead of your original dataloader into the `register_default_init_args`
+    nncf_config = register_default_init_args(nncf_config, init_dataloader)
+    # and then call `create_compressed_model` with that config file as usual.
 
     compression_ctrl, compressed_model = create_compressed_model(model, nncf_config)
 
@@ -156,10 +213,26 @@ def DtoManager(
     params_to_optimize = get_parameter_groups(compressed_model, nncf_config)
     nncf_optimizer, nncf_lr_scheduler = make_optimizer(params_to_optimize, nncf_config)
 
+    if 'epochs' in nncf_config:
+        epochs = nncf_config['epochs']
+    else:
+        epochs = 10
 
-    for epoch in range(nncf_config['epochs']):
-        compression_scheduler.step()
+
+    for epoch in range(epochs):
         compression_scheduler.epoch_step()
+
+        # Printing times
+        epoch_start_time = time.time()
+        print("*" * 20)
+        print("*" * 20)
+        print("Starting Epoch : ", epoch)
+        if parameters["verbose"]:
+            print("Epoch start time : ", get_date_time())
+
+        parameters["current_epoch"] = epoch
+
+
         epoch_train_loss, epoch_train_metric = train_network(
             compressed_model, train_dataloader, nncf_optimizer, parameters
         )
@@ -168,6 +241,13 @@ def DtoManager(
         epoch_valid_loss, epoch_valid_metric = validate_network(
             compressed_model, val_dataloader, compression_scheduler, parameters, epoch, mode="validation"
         )
+
+
+        # Write the losses to a logger
+        nncf_train_logger.write(epoch, epoch_train_loss, epoch_train_metric)
+        nncf_valid_logger.write(epoch, epoch_valid_loss, epoch_valid_metric)
+
+        
 
 
 
