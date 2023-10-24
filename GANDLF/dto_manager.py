@@ -17,6 +17,7 @@ from GANDLF.compute.forward_pass import validate_network
 import time
 from tqdm import tqdm
 import torchio
+from nncf.torch.exporter import generate_input_names_list
 
 from GANDLF.optimizers.nncf_optimizer import get_parameter_groups, make_optimizer
 from GANDLF.utils import (
@@ -135,6 +136,9 @@ def DtoManager(
         "latest": os.path.join(
             outputDir, parameters["model"]["architecture"] + latest_model_path_end
         ),
+        "latest_nncf": os.path.join(
+            outputDir, parameters["model"]["architecture"] + latest_model_path_end.replace(".pth.tar", "_nncf.onnx")
+        ),
     }
 
     # if previous model file is present, load it up for sanity checks
@@ -241,13 +245,25 @@ def DtoManager(
         epoch_valid_loss, epoch_valid_metric = validate_network(
             compressed_model, val_dataloader, compression_scheduler, parameters, epoch, mode="validation"
         )
-
+        
+        print("Training metrics is: ", epoch_train_metric)
+        print("Validation metric is: ", epoch_valid_metric)
 
         # Write the losses to a logger
         nncf_train_logger.write(epoch, epoch_train_loss, epoch_train_metric)
         nncf_valid_logger.write(epoch, epoch_valid_loss, epoch_valid_metric)
 
-        
+        model = compressed_model.eval().cpu()
+        input_names = generate_input_names_list(len(model.nncf.input_infos))
+        input_tensor_list = []
+        for info in model.nncf.input_infos:
+            input_shape = tuple([1] + list(info.shape)[1:])
+            input_tensor_list.append(torch.rand(input_shape))
+
+        with torch.no_grad():
+            torch.onnx.export(model, tuple(input_tensor_list), model_paths['latest_nncf'], input_names=input_names)
+        print(f"Saved to {model_paths['latest_nncf']}")
+    
 
 
 
