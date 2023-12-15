@@ -15,7 +15,7 @@ from GANDLF.utils import (
 )
 
 
-def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu"):
+def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu", train_nncf=False):
     """
     This function creates all the PyTorch objects needed for training.
 
@@ -35,6 +35,7 @@ def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu
     """
     # initialize train and val loaders
     train_loader, val_loader = None, None
+
     headers_to_populate_train, headers_to_populate_val = None, None
 
     if train_csv is not None:
@@ -57,6 +58,7 @@ def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu
         parameters["validation_data"], headers_to_populate_val = parseTrainingCSV(
             val_csv, train=False
         )
+        
         if headers_to_populate_train is None:
             parameters = populate_header_in_parameters(
                 parameters, headers_to_populate_val
@@ -82,6 +84,7 @@ def create_pytorch_objects(parameters, train_csv=None, val_csv=None, device="cpu
         model, amp=parameters["model"]["amp"], device=device, optimizer=optimizer
     )
 
+    
     # only need to create scheduler if training
     if train_csv is not None:
         if not ("step_size" in parameters["scheduler"]):

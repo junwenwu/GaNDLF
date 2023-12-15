@@ -2986,6 +2986,7 @@ def test_collision_subjectid_test_segmentation_rad_2d(device):
     print("passed")
 
 
+#test_train_inference_optimize_segmentation_rad_2d('cpu')
 def test_generic_random_numbers_are_deterministic_on_cpu():
     print("48: Starting testing deterministic random numbers generation")
 

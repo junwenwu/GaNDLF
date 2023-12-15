@@ -247,8 +247,10 @@ def TrainingManager(dataframe, outputDir, parameters, device, resume, reset):
             else:
                 validationData = get_dataframe(currentValidationDataPickle)
 
+
             # parallel_compute_command is an empty string, thus no parallel computing requested
             if (not parameters["parallel_compute_command"]) or (singleFoldValidation):
+                
                 training_loop(
                     training_data=trainingData,
                     validation_data=validationData,
@@ -260,6 +262,7 @@ def TrainingManager(dataframe, outputDir, parameters, device, resume, reset):
 
             else:
                 # call qsub here
+                
                 parallel_compute_command_actual = parameters[
                     "parallel_compute_command"
                 ].replace("${outputDir}", currentValOutputFolder)

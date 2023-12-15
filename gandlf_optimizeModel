@@ -3,7 +3,9 @@
 
 import argparse
 from GANDLF.cli import copyrightMessage, post_training_model_optimization
-
+import sys
+from GANDLF.cli import ptq_run
+from GANDLF.cli.dto_run import dto_run
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -14,26 +16,85 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-m",
-        "--model",
-        metavar="",
-        type=str,
-        help="Path to the model file (ending in '.pth.tar') you wish to optimize.",
-        required=True,
+        "-m", "--model", metavar="", type=str, required=True,
+        help="Path to the model file you wish to optimize. \
+            Model ending in '.pth.tar' will evoke MO optimization, if input data is given, post-training quantization will be evoked as well. \
+            Model ending in '.xml' will evoke post-training quantization.",
     )
+
     parser.add_argument(
-        "-c",
-        "--config",
-        metavar="",
-        type=str,
-        default=None,
-        required=False,
+        "-c", "--config", metavar="", type=str, default=None, required=False,
         help="The configuration file (contains all the information related to the training/inference session).",
+    )
+
+    parser.add_argument(
+        "-ptq", action="store_false",
+        help="Optimization type. Default is OpenVINO NNCF PTQ. If False, using NNCF DTO (During Training Optimization) for optimization.",
+    )
+
+    parser.add_argument(
+        "-i", "--inputdata", metavar="", type=str,
+        help="For PTQ: PTQ calibration data CSV file; for DTO: training data CSV file and validation data CSV file separated by comma.",
+    )
+
+    parser.add_argument(
+        "-o", "--outputdir", metavar="", type=str,
+        help="Location to save the output of the PTQ session. ",
     )
 
     args = parser.parse_args()
 
-    if post_training_model_optimization(args.model, args.config):
-        print("Post-training model optimization successful.")
-    else:
-        print("Post-training model optimization failed.")
+    if "pth.tar" in args.model and args.ptq == True:
+        if during_training_model_optimization(args.model, args.config):
+            print("Post-training model optimization successful.")
+
+            if args.inputdata:
+                try:
+                    ptq_run(
+                        args.inputdata,
+                        args.config,
+                        args.model.replace("pth.tar", "xml"),
+                        args.outputdir,
+                    )
+                    print("Post-training model quantization successful.")
+                except Exception as e:
+                    sys.exit("Error in post-training model quantization.")
+
+        else:
+            sys.exit("Error: Post-training model optimization failed.")
+    elif "pth.tar" in args.model and args.ptq == False:
+        print("Start during-training model optimization.")
+
+        if args.inputdata:
+            try:
+                dto_run(
+                        args.inputdata,
+                        args.config,
+                        args.model,
+                        args.outputdir,
+                    )
+                print("During-training model optimization successful.")
+            except Exception as e:
+                print(e)
+                sys.exit("Error in during-training model optimization.")
+
+        else:
+            sys.exit("Error: Need to privde both training and validation data for OpenVINO NNCF During Training Optimization.")
+        
+
+    if ".xml" in args.model:
+        if args.inputdata:
+            try:
+                ptq_run(
+                    args.inputdata,
+                    args.config,
+                    args.model,
+                    args.outputdir,
+                )
+            except Exception as e:
+                print(e)
+                sys.exit("Error in post-training model quantization.")
+        else:
+            print(e)
+            sys.exit("Error: Post-training model quantization requires a calibration dataset.")
+

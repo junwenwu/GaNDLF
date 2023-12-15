@@ -60,6 +60,7 @@ def train_network(model, train_dataloader, optimizer, params):
     print("Starting Training : ")
     print("*" * 20)
     # Initialize a few things
+
     total_epoch_train_loss = 0
     total_epoch_train_metric = {}
     average_epoch_train_metric = {}
@@ -245,6 +246,8 @@ def training_loop(
     params["training_data"] = training_data
     params["validation_data"] = validation_data
     params["testing_data"] = testing_data
+
+    
     testingDataDefined = True
     if params["testing_data"] is None:
         # testing_data = validation_data

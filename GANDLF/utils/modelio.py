@@ -70,10 +70,12 @@ def optimize_and_save_model(model, params, path, onnx_export=True):
                 dummy_input = torch.randn(
                     (1, num_channel, input_shape[0], input_shape[1])
                 )
-            else:
+            elif model_dimension == 3:
                 dummy_input = torch.randn(
                     (1, num_channel, input_shape[0], input_shape[1], input_shape[2])
                 )
+            else:
+                sys.exit("ERROR: Invalid model dimensions. Acceptable model dimensions are 2 or 3.")
 
             # Export the model to ONNX format
             with torch.no_grad():
