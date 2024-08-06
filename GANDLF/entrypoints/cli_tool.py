@@ -11,6 +11,7 @@ from GANDLF import version
 @append_copyright_to_help
 def gandlf(ctx):
     """GANDLF command-line tool."""
+    print(ctx)
     ctx.ensure_object(dict)
     logger_setup()
 

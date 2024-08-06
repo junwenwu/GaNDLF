@@ -13,10 +13,10 @@ from GANDLF.utils import logger_setup
 
 
 def _optimize_model(
-    model: str, config: Optional[str], output_path: Optional[str] = None
+    model: str, config: Optional[str], data_path: Optional[str], output_path: Optional[str] = None
 ):
     if post_training_model_optimization(
-        model_path=model, config_path=config, output_path=output_path
+        model_path=model, config_path=config, data_path=data_path, output_path=output_path
     ):
         print("Post-training model optimization successful.")
     else:
@@ -46,12 +46,20 @@ def _optimize_model(
     required=False,
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
+@click.option(
+    "--data",
+    "-d",
+    type=click.Path(file_okay=True, dir_okay=False),
+    required=False,
+    help="Path to the data file (ending in '.csv') you wish to use for NNCF optimization.",
+)
+
 @append_copyright_to_help
 def new_way(
-    model: str, config: Optional[str] = None, output_path: Optional[str] = None
+    model: str, config: Optional[str] = None, data: Optional[str] = None, output_path: Optional[str] = None
 ):
     """Generate optimized versions of trained GaNDLF models."""
-    _optimize_model(model=model, config=config, output_path=output_path)
+    _optimize_model(model=model, config=config, data_path=data,output_path=output_path)
 
 
 # old-fashioned way of running gandlf via `gandlf_optimizeModel`.
@@ -78,6 +86,14 @@ def old_way():
         required=True,
     )
     parser.add_argument(
+        "-d",
+        "--data",
+        metavar="",
+        type=str,
+        help="Path to the data file (ending in '.csv') you wish to use for NNCF optimization.",
+        required=False,
+    )    
+    parser.add_argument(
         "-o",
         "--outputdir",
         "--output_path",
@@ -99,8 +115,8 @@ def old_way():
     )
 
     args = parser.parse_args()
-    _optimize_model(model=args.model, config=args.config, output_path=args.outputdir)
+    _optimize_model(model=args.model, config=args.config, data_path=args.data, output_path=args.outputdir)
 
 
 if __name__ == "__main__":
-    old_way()
+    new_way()

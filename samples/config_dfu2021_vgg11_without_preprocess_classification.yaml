@@ -11,7 +11,7 @@ model:
     base_filters: 16, # Set base filters: number of filters present in the initial module of the U-Net convolution; for IncU-Net, keep this divisible by 4
     architecture: vgg11, # options: unet, resunet, fcn, uinc, vgg, densenet
     batch_norm: True, # this is only used for vgg
-    final_layer: None, # can be either sigmoid, softmax or none (none == regression)
+    final_layer: sigmoid, # can be either sigmoid, softmax or none (none == regression)
     amp: False, # Set if you want to use Automatic Mixed Precision for your operations or not - options: True, False
     n_channels: 3, # set the input channels - useful when reading RGB or images that have vectored pixel types
     class_list: ["0", "1", "2", "3"],

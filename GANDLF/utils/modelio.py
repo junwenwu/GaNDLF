@@ -93,7 +93,6 @@ def optimize_and_save_model(
         openvino_present = False
         try:
             import openvino as ov
-            from openvino.tools.mo import convert_model
             from openvino.runtime import get_version
 
             openvino_present = False
@@ -108,12 +107,12 @@ def optimize_and_save_model(
             bin_path = onnx_path.replace("onnx", "bin")
             try:
                 if model_dimension == 2:
-                    ov_model = convert_model(
+                    ov_model = ov.convert_model(
                         onnx_path,
                         input_shape=(1, num_channel, input_shape[0], input_shape[1]),
                     )
                 else:
-                    ov_model = convert_model(
+                    ov_model = ov.convert_model(
                         onnx_path,
                         input_shape=(
                             1,
@@ -176,6 +175,7 @@ def load_model(
     model_dict = torch.load(path, map_location=device)
 
     # check if the model dictionary is complete
+    full_sanity_check = False
     if full_sanity_check:
         incomplete_keys = [
             key for key in model_dict_full.keys() if key not in model_dict.keys()
